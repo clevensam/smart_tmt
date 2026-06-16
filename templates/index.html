@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUST Timetable Downloader</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #e8f0e8;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 520px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #18512f;
+            margin-bottom: 20px;
+        }
+        .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #18512f;
+            margin-bottom: 4px;
+        }
+        .logo span { color: #2c6e8f; }
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #18512f;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #e8f0e8;
+            color: #18512f;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab.active {
+            background: #18512f;
+            color: white;
+        }
+        .tab:not(.active):hover {
+            background: #d0e0d0;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus { border-color: #18512f; }
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background: #18512f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        button:hover { background: #134428; }
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            display: none;
+            text-align: left;
+        }
+        .result.success {
+            display: block;
+            background: #e8f5e9;
+            border: 1px solid #18512f;
+        }
+        .result.error {
+            display: block;
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+        }
+        .result .student-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #18512f;
+            margin-bottom: 4px;
+        }
+        .result .student-info {
+            color: #555;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+        .download-btn {
+            display: inline-block;
+            padding: 10px 28px;
+            background: #2c6e8f;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .download-btn:hover { background: #1e5a75; }
+        .venue-group {
+            margin-bottom: 16px;
+            border: 1px solid #18512f;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .venue-header {
+            background: #18512f;
+            color: white;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .venue-header .venue-meta {
+            font-weight: 400;
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        .venue-count {
+            font-weight: 400;
+            font-size: 0.8rem;
+            opacity: 0.85;
+        }
+        .venue-students {
+            padding: 8px 0;
+        }
+        .venue-student {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            border-bottom: 1px solid #e8f0e8;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .venue-student:last-child { border-bottom: none; }
+        .venue-student .v-name { font-weight: 600; color: #1a1a1a; }
+        .venue-student .v-prog { color: #666; font-size: 0.8rem; }
+        .course-info {
+            text-align: center;
+            margin-bottom: 16px;
+            color: #18512f;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+        .footer {
+            margin-top: 24px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #18512f;
+        }
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .card { padding: 20px; }
+            h1 { font-size: 1.25rem; }
+            .logo { font-size: 1.5rem; }
+            .tab { font-size: 0.72rem; padding: 8px 4px; }
+            .input-group { flex-direction: column; }
+            .input-group button { width: 100%; }
+            .venue-header { flex-direction: column; text-align: center; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">M<span>U</span>ST</div>
+        <h1>Timetable Downloader</h1>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="download">Download Timetable</button>
+            <button class="tab" data-tab="venues">Venue Sharing</button>
+        </div>
+
+        <div id="tab-download" class="tab-content active">
+            <p class="subtitle">Enter your registration number to download your personalized timetable</p>
+            <form id="searchForm">
+                <div class="input-group">
+                    <input type="text" id="regno" name="regno" placeholder="e.g. 25100534760075" required autocomplete="off">
+                    <button type="submit" id="submitBtn">Search</button>
+                </div>
+            </form>
+            <div class="result" id="result">
+                <div class="student-name" id="studentName"></div>
+                <div class="student-info" id="studentInfo"></div>
+                <a href="#" class="download-btn" id="downloadLink">Download Timetable</a>
+            </div>
+        </div>
+
+        <div id="tab-venues" class="tab-content">
+            <p class="subtitle">Enter a course code to see which students share a venue</p>
+            <form id="venueForm">
+                <div class="input-group">
+                    <input type="text" id="courseCode" placeholder="e.g. CS 8115" required autocomplete="off">
+                    <button type="submit" id="venueBtn">Find</button>
+                </div>
+            </form>
+            <div class="result" id="venueResult"></div>
+        </div>
+
+        <div class="footer">Developed by Mopao and MSS</div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Download timetable tab
+        const form = document.getElementById('searchForm');
+        const regnoInput = document.getElementById('regno');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+        const studentName = document.getElementById('studentName');
+        const studentInfo = document.getElementById('studentInfo');
+        const downloadLink = document.getElementById('downloadLink');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'none';
+
+            const regno = regnoInput.value.trim();
+            if (!regno) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Searching...';
+
+            try {
+                const resp = await fetch(`/api/lookup/${encodeURIComponent(regno)}`);
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Not found');
+                }
+                const data = await resp.json();
+                studentName.textContent = data.name;
+                studentInfo.textContent = data.programme;
+                downloadLink.href = '/download?' + new URLSearchParams({ regno });
+                resultDiv.className = 'result success';
+                resultDiv.style.display = 'block';
+            } catch (err) {
+                studentName.textContent = '';
+                studentInfo.textContent = err.message;
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Search';
+            }
+        });
+
+        // Venue sharing tab
+        const venueForm = document.getElementById('venueForm');
+        const courseInput = document.getElementById('courseCode');
+        const venueBtn = document.getElementById('venueBtn');
+        const venueResult = document.getElementById('venueResult');
+
+        venueForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            venueResult.className = 'result';
+            venueResult.style.display = 'none';
+
+            const course = courseInput.value.trim();
+            if (!course) return;
+
+            venueBtn.disabled = true;
+            venueBtn.textContent = 'Searching...';
+
+            try {
+                const resp = await fetch('/api/venue-share?' + new URLSearchParams({ course }));
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Not found');
+                }
+                const data = await resp.json();
+
+                let html = '<div class="course-info">' + data.course_code + ' &mdash; ' + data.course_name + '</div>';
+                data.venues.forEach(v => {
+                    html += '<div class="venue-group">';
+                    html += '<div class="venue-header">';
+                    html += '<strong>Venue: ' + v.venue + ' <span class="venue-count">(' + v.students.length + ' students)</span></strong>';
+                    html += '<a href="/api/venue-share/download?' + new URLSearchParams({ course, venue: v.venue }) + '" class="download-btn" style="font-size:0.75rem;padding:4px 12px;text-decoration:none;">Download</a>';
+                    html += '</div>';
+                    html += '<div style="padding:8px 14px;text-align:left;font-size:0.85rem;color:#666;">';
+                    html += v.exam_date + ' &bull; ' + v.time_slot;
+                    html += '</div>';
+                    html += '</div>';
+                });
+
+                venueResult.innerHTML = html;
+                venueResult.className = 'result success';
+                venueResult.style.display = 'block';
+            } catch (err) {
+                venueResult.innerHTML = '';
+                venueResult.textContent = err.message;
+                venueResult.className = 'result error';
+                venueResult.style.display = 'block';
+            } finally {
+                venueBtn.disabled = false;
+                venueBtn.textContent = 'Find';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: smart-tmt
+    env: docker
+    repo: https://github.com/clevensam/smart_tmt.git
+    plan: free
