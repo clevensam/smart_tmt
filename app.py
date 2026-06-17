@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import sqlite3
 from collections import defaultdict
@@ -8,6 +9,27 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fpdf import FPDF
 
 from config import STUDENTS_DB_PATH, ENTRIES_DB_PATH, TEMPLATE_DIR
+
+REGNO_PATTERN = re.compile(r"^\d{14}$")
+COURSE_PATTERN = re.compile(r"^[A-Za-z]{2,4}\s+\d{4}$")
+
+
+def validate_regno(regno: str) -> str:
+    regno = regno.strip()
+    if not regno:
+        raise HTTPException(status_code=422, detail="Registration number is required")
+    if not REGNO_PATTERN.match(regno):
+        raise HTTPException(status_code=422, detail="Registration number must be exactly 14 digits (e.g., 25100534760075)")
+    return regno
+
+
+def validate_course_code(code: str) -> str:
+    code = code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=422, detail="Course code is required")
+    if not COURSE_PATTERN.match(code):
+        raise HTTPException(status_code=422, detail="Invalid course code format. Expected format: 2-4 letters followed by 4 digits (e.g., CS 8115, ET 6312)")
+    return code
 
 app = FastAPI(title="MUST Timetable Downloader")
 
@@ -26,6 +48,7 @@ async def rate_limit(request: Request, call_next):
         return HTMLResponse("Rate limit exceeded", status_code=429)
     window.append(now)
     return await call_next(request)
+
 
 
 def latin1(text):
@@ -51,11 +74,13 @@ async def index():
 
 @app.get("/download")
 async def download_get(regno: str = Query(...)):
+    regno = validate_regno(regno)
     return await _download(regno)
 
 
 @app.post("/download")
 async def download_post(regno: str = Form(...)):
+    regno = validate_regno(regno)
     return await _download(regno)
 
 
@@ -125,7 +150,6 @@ def _generate_timetable_pdf(student, entries):
 
 
 async def _download(regno: str):
-    regno = regno.strip()
     student = get_student(regno)
     if not student:
         raise HTTPException(status_code=404, detail=f"Registration number {regno} not found")
@@ -145,9 +169,10 @@ async def _download(regno: str):
 
 @app.get("/api/lookup/{regno}")
 async def api_lookup(regno: str):
-    student = get_student(regno.strip())
+    regno = validate_regno(regno)
+    student = get_student(regno)
     if not student:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail=f"Registration number {regno} not found")
     return {
         "regno": student["regno"],
         "name": student["name"],
@@ -158,6 +183,7 @@ async def api_lookup(regno: str):
 
 @app.get("/api/venue-share")
 async def venue_share(course: str = Query(...)):
+    course = validate_course_code(course)
     conn = sqlite3.connect(ENTRIES_DB_PATH)
     conn.row_factory = sqlite3.Row
     rows = conn.execute("""
@@ -166,7 +192,7 @@ async def venue_share(course: str = Query(...)):
         FROM timetable_entries
         WHERE course_code = ?
         ORDER BY venue, student_name
-    """, (course.strip(),)).fetchall()
+    """, (course,)).fetchall()
     conn.close()
 
     if not rows:
@@ -192,7 +218,7 @@ async def venue_share(course: str = Query(...)):
         })
 
     return {
-        "course_code": course.strip(),
+        "course_code": course,
         "course_name": rows[0]["course_name"],
         "venues": list(venues_map.values())
     }
@@ -200,6 +226,7 @@ async def venue_share(course: str = Query(...)):
 
 @app.get("/api/venue-share/download")
 async def venue_share_download(course: str = Query(...), venue: str = Query(default=None)):
+    course = validate_course_code(course)
     conn = sqlite3.connect(ENTRIES_DB_PATH)
     conn.row_factory = sqlite3.Row
 
@@ -210,7 +237,7 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
             FROM timetable_entries
             WHERE course_code = ? AND venue = ?
             ORDER BY student_name
-        """, (course.strip(), venue.strip())).fetchall()
+        """, (course, venue.strip())).fetchall()
     else:
         rows = conn.execute("""
             SELECT student_name as name, regno, student_programme as programme,
@@ -218,7 +245,7 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
             FROM timetable_entries
             WHERE course_code = ?
             ORDER BY venue, student_name
-        """, (course.strip(),)).fetchall()
+        """, (course,)).fetchall()
     conn.close()
 
     if not rows:
@@ -238,7 +265,7 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
     pdf.ln(12)
 
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 7, latin1(f"Course: {course.strip()} - {rows[0]['course_name']}"))
+    pdf.cell(0, 7, latin1(f"Course: {course} - {rows[0]['course_name']}"))
     pdf.ln(7)
 
     if venue:
@@ -257,7 +284,7 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
         pdf.set_text_color(24, 81, 47)
         pdf.cell(0, 7, f"Total: {len(rows)} students")
 
-        filename = f"{course.strip().replace(' ', '_')}_{venue.strip().replace(' ', '_')}.pdf"
+        filename = f"{course.replace(' ', '_')}_{venue.strip().replace(' ', '_')}.pdf"
     else:
         venues_map = {}
         for row in rows:
@@ -297,7 +324,7 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
         pdf.set_text_color(24, 81, 47)
         pdf.cell(0, 7, f"Total students: {total_students}")
 
-        filename = f"{course.strip().replace(' ', '_')}_venue_sharing.pdf"
+        filename = f"{course.replace(' ', '_')}_venue_sharing.pdf"
 
     pdf.ln(8)
     pdf.set_text_color(128, 128, 128)

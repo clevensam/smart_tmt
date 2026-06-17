@@ -219,24 +219,24 @@
 
         <div id="tab-download" class="tab-content active">
             <p class="subtitle">Enter your registration number to download your personalized timetable</p>
-            <form id="searchForm">
+            <form id="searchForm" novalidate>
                 <div class="input-group">
-                    <input type="text" id="regno" name="regno" placeholder="e.g. 25100534760075" required autocomplete="off">
+                    <input type="text" id="regno" name="regno" placeholder="e.g. 25100534760075" pattern="[0-9]{14}" title="Registration number must be exactly 14 digits" required autocomplete="off">
                     <button type="submit" id="submitBtn">Search</button>
                 </div>
             </form>
             <div class="result" id="result">
                 <div class="student-name" id="studentName"></div>
                 <div class="student-info" id="studentInfo"></div>
-                <a href="#" class="download-btn" id="downloadLink">Download Timetable</a>
+                <a href="#" class="download-btn" id="downloadLink" style="display:none">Download Timetable</a>
             </div>
         </div>
 
         <div id="tab-venues" class="tab-content">
             <p class="subtitle">Enter a course code to see which students share a venue</p>
-            <form id="venueForm">
+            <form id="venueForm" novalidate>
                 <div class="input-group">
-                    <input type="text" id="courseCode" placeholder="e.g. CS 8115" required autocomplete="off">
+                    <input type="text" id="courseCode" placeholder="e.g. CS 8115" pattern="[A-Za-z]{2,4}\s+\d{4}" title="Course code format: 2-4 letters followed by a space and 4 digits (e.g., CS 8115)" required autocomplete="off">
                     <button type="submit" id="venueBtn">Find</button>
                 </div>
             </form>
@@ -266,13 +266,34 @@
         const studentInfo = document.getElementById('studentInfo');
         const downloadLink = document.getElementById('downloadLink');
 
+        const REGNO_PATTERN = /^\d{14}$/;
+        const COURSE_PATTERN = /^[A-Za-z]{2,4}\s+\d{4}$/;
+
+        regnoInput.addEventListener('input', () => {
+            const val = regnoInput.value.trim();
+            if (val && !REGNO_PATTERN.test(val)) {
+                regnoInput.setCustomValidity('Reg No must be exactly 14 digits');
+            } else {
+                regnoInput.setCustomValidity('');
+            }
+        });
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             resultDiv.className = 'result';
             resultDiv.style.display = 'none';
+            downloadLink.style.display = 'none';
 
             const regno = regnoInput.value.trim();
             if (!regno) return;
+
+            if (!REGNO_PATTERN.test(regno)) {
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+                studentName.textContent = '';
+                studentInfo.textContent = 'Invalid format: Registration number must be exactly 14 digits (e.g., 25100534760075)';
+                return;
+            }
 
             submitBtn.disabled = true;
             submitBtn.textContent = 'Searching...';
@@ -287,6 +308,7 @@
                 studentName.textContent = data.name;
                 studentInfo.textContent = data.programme;
                 downloadLink.href = '/download?' + new URLSearchParams({ regno });
+                downloadLink.style.display = 'inline-block';
                 resultDiv.className = 'result success';
                 resultDiv.style.display = 'block';
             } catch (err) {
@@ -306,6 +328,15 @@
         const venueBtn = document.getElementById('venueBtn');
         const venueResult = document.getElementById('venueResult');
 
+        courseInput.addEventListener('input', () => {
+            const val = courseInput.value.trim();
+            if (val && !COURSE_PATTERN.test(val)) {
+                courseInput.setCustomValidity('Format: 2-4 letters + space + 4 digits (e.g., CS 8115)');
+            } else {
+                courseInput.setCustomValidity('');
+            }
+        });
+
         venueForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             venueResult.className = 'result';
@@ -313,6 +344,13 @@
 
             const course = courseInput.value.trim();
             if (!course) return;
+
+            if (!COURSE_PATTERN.test(course)) {
+                venueResult.className = 'result error';
+                venueResult.style.display = 'block';
+                venueResult.textContent = 'Invalid format: Course code must be 2-4 letters followed by a space and 4 digits (e.g., CS 8115)';
+                return;
+            }
 
             venueBtn.disabled = true;
             venueBtn.textContent = 'Searching...';
