@@ -129,16 +129,36 @@
             margin-bottom: 12px;
         }
         .download-btn {
-            display: inline-block;
-            padding: 10px 28px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 24px;
+            background: white;
+            color: #18512f;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border: 2px solid #18512f;
+        }
+        .view-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 24px;
             background: #2c6e8f;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
-            transition: background 0.2s;
+            font-size: 0.95rem;
+            border: none;
         }
-        .download-btn:hover { background: #1e5a75; }
+        .btn-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.78rem;
+        }
         .venue-group {
             margin-bottom: 16px;
             border: 1px solid #18512f;
@@ -228,7 +248,8 @@
             <div class="result" id="result">
                 <div class="student-name" id="studentName"></div>
                 <div class="student-info" id="studentInfo"></div>
-                <a href="#" class="download-btn" id="downloadLink" style="display:none">Download Timetable</a>
+                <a href="#" class="download-btn" id="viewLink" style="display:none" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</a>
+                    <a href="#" class="view-btn" id="downloadLink" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download</a>
             </div>
         </div>
 
@@ -265,6 +286,7 @@
         const studentName = document.getElementById('studentName');
         const studentInfo = document.getElementById('studentInfo');
         const downloadLink = document.getElementById('downloadLink');
+        const viewLink = document.getElementById('viewLink');
 
         const REGNO_PATTERN = /^\d{14}$/;
         const COURSE_PATTERN = /^[A-Za-z]{2,4}\s+\d{4}$/;
@@ -283,6 +305,7 @@
             resultDiv.className = 'result';
             resultDiv.style.display = 'none';
             downloadLink.style.display = 'none';
+            viewLink.style.display = 'none';
 
             const regno = regnoInput.value.trim();
             if (!regno) return;
@@ -307,8 +330,11 @@
                 const data = await resp.json();
                 studentName.textContent = data.name;
                 studentInfo.textContent = data.programme;
-                downloadLink.href = '/download?' + new URLSearchParams({ regno });
+                const params = new URLSearchParams({ regno });
+                downloadLink.href = '/download?' + params;
+                viewLink.href = '/view?' + params;
                 downloadLink.style.display = 'inline-block';
+                viewLink.style.display = 'inline-block';
                 resultDiv.className = 'result success';
                 resultDiv.style.display = 'block';
             } catch (err) {
@@ -365,10 +391,14 @@
 
                 let html = '<div class="course-info">' + data.course_code + ' &mdash; ' + data.course_name + '</div>';
                 data.venues.forEach(v => {
+                    const params = new URLSearchParams({ course, venue: v.venue });
                     html += '<div class="venue-group">';
                     html += '<div class="venue-header">';
                     html += '<strong>Venue: ' + v.venue + ' <span class="venue-count">(' + v.students.length + ' students)</span></strong>';
-                    html += '<a href="/api/venue-share/download?' + new URLSearchParams({ course, venue: v.venue }) + '" class="download-btn" style="font-size:0.75rem;padding:4px 12px;text-decoration:none;">Download</a>';
+                    html += '<div class="btn-group">';
+                    html += '<a href="/api/venue-share/view?' + params + '" class="download-btn btn-sm" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</a>';
+                    html += '<a href="/api/venue-share/download?' + params + '" class="view-btn btn-sm"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download</a>';
+                    html += '</div>';
                     html += '</div>';
                     html += '<div style="padding:8px 14px;text-align:left;font-size:0.85rem;color:#666;">';
                     html += v.exam_date + ' &bull; ' + v.time_slot;

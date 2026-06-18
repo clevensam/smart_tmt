@@ -84,6 +84,12 @@ async def download_post(regno: str = Form(...)):
     return await _download(regno)
 
 
+@app.get("/view")
+async def view_get(regno: str = Query(...)):
+    regno = validate_regno(regno)
+    return await _view(regno)
+
+
 def _get_entries(regno: str):
     conn = sqlite3.connect(ENTRIES_DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -149,7 +155,7 @@ def _generate_timetable_pdf(student, entries):
     return buf
 
 
-async def _download(regno: str):
+async def _serve_pdf(regno: str, inline: bool = False):
     student = get_student(regno)
     if not student:
         raise HTTPException(status_code=404, detail=f"Registration number {regno} not found")
@@ -159,12 +165,21 @@ async def _download(regno: str):
         raise HTTPException(status_code=404, detail=f"No timetable entries found for {regno}")
 
     buf = _generate_timetable_pdf(student, entries)
+    disposition = "inline" if inline else "attachment"
     filename = f"{regno}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'}
     )
+
+
+async def _download(regno: str):
+    return await _serve_pdf(regno, inline=False)
+
+
+async def _view(regno: str):
+    return await _serve_pdf(regno, inline=True)
 
 
 @app.get("/api/lookup/{regno}")
@@ -224,9 +239,7 @@ async def venue_share(course: str = Query(...)):
     }
 
 
-@app.get("/api/venue-share/download")
-async def venue_share_download(course: str = Query(...), venue: str = Query(default=None)):
-    course = validate_course_code(course)
+async def _venue_pdf(course: str, venue: str | None = None, inline: bool = False):
     conn = sqlite3.connect(ENTRIES_DB_PATH)
     conn.row_factory = sqlite3.Row
 
@@ -335,8 +348,21 @@ async def venue_share_download(course: str = Query(...), venue: str = Query(defa
     pdf.output(buf)
     buf.seek(0)
 
+    disposition = "inline" if inline else "attachment"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'}
     )
+
+
+@app.get("/api/venue-share/download")
+async def venue_share_download(course: str = Query(...), venue: str = Query(default=None)):
+    course = validate_course_code(course)
+    return await _venue_pdf(course, venue, inline=False)
+
+
+@app.get("/api/venue-share/view")
+async def venue_share_view(course: str = Query(...), venue: str = Query(default=None)):
+    course = validate_course_code(course)
+    return await _venue_pdf(course, venue, inline=True)
