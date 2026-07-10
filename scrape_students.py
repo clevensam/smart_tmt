@@ -13,7 +13,8 @@ def create_db():
             regno TEXT PRIMARY KEY,
             page_number INTEGER NOT NULL,
             name TEXT,
-            programme TEXT
+            programme TEXT,
+            ue_number TEXT
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_page ON students(page_number)")
@@ -34,13 +35,14 @@ def scrape():
     name_re = re.compile(r"^\d+\.\s+(.+)")
     reg_re = re.compile(r"Reg:\s*(\d+)")
     prog_re = re.compile(r"Programme:\s*(.+)")
+    ue_re = re.compile(r"UE No:\s*(\S+)")
 
     batch = []
     for page_num in range(total):
         page = doc[page_num]
         lines = page.get_text().split("\n")
 
-        regno = name = programme = None
+        regno = name = programme = ue_number = None
         for line in lines:
             line = line.strip()
             m = name_re.match(line)
@@ -54,15 +56,19 @@ def scrape():
             m = prog_re.match(line)
             if m:
                 programme = m.group(1).strip()
+                continue
+            m = ue_re.search(line)
+            if m:
+                ue_number = m.group(1)
 
         if regno:
-            batch.append((regno, page_num + 1, name, programme))
+            batch.append((regno, page_num + 1, name, programme, ue_number))
         else:
             print(f"  [WARN] No regno found on page {page_num + 1}")
 
         if len(batch) >= 100:
             cursor.executemany(
-                "INSERT OR REPLACE INTO students (regno, page_number, name, programme) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO students (regno, page_number, name, programme, ue_number) VALUES (?, ?, ?, ?, ?)",
                 batch
             )
             conn.commit()
@@ -73,7 +79,7 @@ def scrape():
 
     if batch:
         cursor.executemany(
-            "INSERT OR REPLACE INTO students (regno, page_number, name, programme) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO students (regno, page_number, name, programme, ue_number) VALUES (?, ?, ?, ?, ?)",
             batch
         )
         conn.commit()

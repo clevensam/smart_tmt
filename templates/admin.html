@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MUST UE Admin Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #e8f0e8;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+        }
+        .header h1 {
+            font-size: 1.5rem; color: #18512f;
+        }
+        .header .back-link {
+            color: #18512f; text-decoration: none; font-size: 0.9rem; font-weight: 600;
+            padding: 8px 16px; border: 2px solid #18512f; border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .header .back-link:hover { background: #18512f; color: white; }
+        .tabs {
+            display: flex; gap: 0; margin-bottom: 20px;
+            border-bottom: 2px solid #18512f;
+        }
+        .tab {
+            flex: 1; padding: 10px 16px; font-size: 0.85rem; font-weight: 600;
+            background: #e8f0e8; color: #18512f; border: none; cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab.active { background: #18512f; color: white; }
+        .tab:not(.active):hover { background: #d0e0d0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1); text-align: center;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem; font-weight: 700; color: #18512f;
+        }
+        .stat-card .stat-label {
+            font-size: 0.8rem; color: #666; margin-top: 4px; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card .stat-sub {
+            font-size: 0.75rem; color: #999; margin-top: 2px;
+        }
+        .stat-card.green .stat-value { color: #18512f; }
+        .stat-card.blue .stat-value { color: #2c6e8f; }
+        .stat-card.orange .stat-value { color: #c76f1e; }
+        .stat-card.purple .stat-value { color: #6b3fa0; }
+        .card {
+            background: white; border-radius: 12px; padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1); margin-bottom: 20px;
+        }
+        .card h3 {
+            font-size: 1rem; color: #18512f; margin-bottom: 14px;
+            padding-bottom: 8px; border-bottom: 1px solid #e8f0e8;
+        }
+        table {
+            width: 100%; border-collapse: collapse; font-size: 0.85rem;
+        }
+        th {
+            text-align: left; padding: 8px 10px; background: #e8f0e8;
+            color: #18512f; font-weight: 600;
+            border-bottom: 2px solid #18512f;
+        }
+        td {
+            padding: 8px 10px; border-bottom: 1px solid #e8f0e8;
+        }
+        tr:hover td { background: #f5faf5; }
+        .badge {
+            display: inline-block; padding: 2px 10px; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge.pending { background: #fff3cd; color: #856404; }
+        .badge.resolved { background: #d4edda; color: #155724; }
+        .btn {
+            padding: 8px 20px; font-size: 0.85rem; font-weight: 600;
+            background: #18512f; color: white; border: none; border-radius: 8px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn:hover { background: #134428; }
+        .btn:disabled { background: #999; cursor: not-allowed; }
+        .btn-sm {
+            padding: 4px 12px; font-size: 0.75rem;
+        }
+        .btn-outline {
+            background: white; color: #18512f; border: 2px solid #18512f;
+        }
+        .btn-outline:hover { background: #18512f; color: white; }
+        .btn-danger { background: #c62828; }
+        .btn-danger:hover { background: #a02020; }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block; font-size: 0.8rem; font-weight: 600;
+            color: #555; margin-bottom: 4px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 10px 14px; font-size: 0.9rem;
+            border: 2px solid #ddd; border-radius: 8px; outline: none;
+            font-family: inherit; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #18512f;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .request-form { max-width: 500px; }
+        .empty-state {
+            text-align: center; padding: 40px; color: #999; font-size: 0.9rem;
+        }
+        .bar-container {
+            display: flex; align-items: center; gap: 8px; margin: 3px 0;
+        }
+        .bar-label { font-size: 0.8rem; min-width: 100px; color: #333; }
+        .bar-track {
+            flex: 1; height: 20px; background: #e8f0e8; border-radius: 4px; overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%; background: #18512f; border-radius: 4px;
+            display: flex; align-items: center; padding-left: 6px;
+            color: white; font-size: 0.7rem; font-weight: 600; min-width: 30px;
+        }
+        .bar-fill.blue { background: #2c6e8f; }
+        .bar-fill.orange { background: #c76f1e; }
+        .charts-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+        .resolve-form {
+            display: inline-flex; gap: 6px; align-items: center;
+        }
+        .resolve-form input {
+            padding: 4px 8px; font-size: 0.75rem; border: 1px solid #ddd;
+            border-radius: 4px; width: 150px;
+        }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .loading::after {
+            content: ''; display: inline-block; width: 20px; height: 20px;
+            margin-left: 8px; border: 2px solid #18512f; border-top-color: transparent;
+            border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .msg {
+            padding: 10px 14px; border-radius: 8px; font-size: 0.85rem;
+            margin-bottom: 12px; display: none;
+        }
+        .msg.success { display: block; background: #e8f5e9; border: 1px solid #18512f; color: #18512f; }
+        .msg.error { display: block; background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .tab { font-size: 0.7rem; padding: 8px 4px; }
+            .card { padding: 16px; }
+            .resolve-form { flex-direction: column; align-items: stretch; }
+            .resolve-form input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>UE Admin Dashboard</h1>
+            <div style="display:flex;gap:10px;align-items:center;">
+                <a href="/" class="back-link">&larr; Back</a>
+                <a href="/admin/logout" class="back-link" style="border-color:#c62828;color:#c62828;">Logout</a>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">Overview</button>
+            <button class="tab" data-tab="analysis">Analysis</button>
+            <button class="tab" data-tab="requests">Requests</button>
+        </div>
+
+        <div id="tab-overview" class="tab-content active"></div>
+        <div id="tab-analysis" class="tab-content"></div>
+        <div id="tab-requests" class="tab-content"></div>
+    </div>
+
+    <script>
+        const OVERVIEW_EL = document.getElementById('tab-overview');
+        const ANALYSIS_EL = document.getElementById('tab-analysis');
+        const REQUESTS_EL = document.getElementById('tab-requests');
+
+        async function fetchWithAuth(url, opts) {
+            const resp = await fetch(url, opts);
+            if (resp.status === 401) {
+                window.location.href = '/admin/login';
+                return null;
+            }
+            if (!resp.ok) {
+                const err = new Error('Request failed: ' + resp.statusText);
+                err.status = resp.status;
+                throw err;
+            }
+            return resp;
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        async function loadOverview() {
+            OVERVIEW_EL.innerHTML = '<div class="loading">Loading overview</div>';
+            try {
+                const resp = await fetchWithAuth('/api/admin/stats');
+                if (!resp) return;
+                const data = await resp.json();
+
+                const uePct = data.total_students ? ((data.with_ue / data.total_students) * 100).toFixed(1) : 0;
+
+                OVERVIEW_EL.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card green">
+                            <div class="stat-value">${data.total_students.toLocaleString()}</div>
+                            <div class="stat-label">Students</div>
+                            <div class="stat-sub">${data.with_ue.toLocaleString()} with UE (${uePct}%)</div>
+                        </div>
+                        <div class="stat-card blue">
+                            <div class="stat-value">${data.total_entries.toLocaleString()}</div>
+                            <div class="stat-label">Exam Entries</div>
+                            <div class="stat-sub">${data.date_range}</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-value">${data.total_courses}</div>
+                            <div class="stat-label">Courses</div>
+                            <div class="stat-sub">${data.total_venues} venues</div>
+                        </div>
+                        <div class="stat-card purple">
+                            <div class="stat-value">${data.without_ue.toLocaleString()}</div>
+                            <div class="stat-label">Missing UE</div>
+                            <div class="stat-sub">${(data.without_ue / data.total_students * 100).toFixed(1)}% of students</div>
+                        </div>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="card">
+                            <h3>Students by Year</h3>
+                            <div id="yearBars"></div>
+                        </div>
+                        <div class="card">
+                            <h3>Busiest Exam Dates</h3>
+                            <div id="dateBars"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Students without UE Number (${data.students_without_ue.length} shown)</h3>
+                        <div id="noUeTable"></div>
+                    </div>
+                `;
+
+                // Year bars
+                const maxYear = Math.max(...data.students_by_year.map(d => d.count), 1);
+                document.getElementById('yearBars').innerHTML = data.students_by_year.map(d => `
+                    <div class="bar-container">
+                        <div class="bar-label">${d.year}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width: ${(d.count / maxYear) * 100}%">${d.count.toLocaleString()}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Date bars
+                const maxDate = Math.max(...data.entries_by_date.map(d => d.count), 1);
+                document.getElementById('dateBars').innerHTML = data.entries_by_date.map(d => `
+                    <div class="bar-container">
+                        <div class="bar-label">${d.date || '(empty)'}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill blue" style="width: ${(d.count / maxDate) * 100}%">${d.count.toLocaleString()}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // No UE table
+                if (data.students_without_ue.length === 0) {
+                    document.getElementById('noUeTable').innerHTML = '<div class="empty-state">All students have UE numbers</div>';
+                } else {
+                    document.getElementById('noUeTable').innerHTML = `
+                        <table>
+                            <thead><tr><th>Reg No</th><th>Name</th><th>Programme</th></tr></thead>
+                            <tbody>
+                                ${data.students_without_ue.map(s => `
+                                    <tr><td>${s.regno}</td><td>${escHtml(s.name)}</td><td>${escHtml(s.programme)}</td></tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (err) {
+                OVERVIEW_EL.innerHTML = `<div class="msg error">${escHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadAnalysis() {
+            ANALYSIS_EL.innerHTML = '<div class="loading">Loading analysis</div>';
+            try {
+                const resp = await fetchWithAuth('/api/admin/stats');
+                if (!resp) return;
+                const data = await resp.json();
+
+                const maxV = Math.max(...data.top_venues.map(d => d.count), 1);
+                const maxC = Math.max(...data.top_courses.map(d => d.count), 1);
+
+                ANALYSIS_EL.innerHTML = `
+                    <div class="charts-grid">
+                        <div class="card">
+                            <h3>Top 10 Venues</h3>
+                            <div>${data.top_venues.map(d => `
+                                <div class="bar-container">
+                                    <div class="bar-label">${escHtml(d.venue)}</div>
+                                    <div class="bar-track">
+                                        <div class="bar-fill orange" style="width: ${(d.count / maxV) * 100}%">${d.count.toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            `).join('')}</div>
+                        </div>
+                        <div class="card">
+                            <h3>Top 10 Courses by Entries</h3>
+                            <div>${data.top_courses.map(d => `
+                                <div class="bar-container">
+                                    <div class="bar-label">${escHtml(d.code)}</div>
+                                    <div class="bar-track">
+                                        <div class="bar-fill purple" style="width: ${(d.count / maxC) * 100}%">${d.count.toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            `).join('')}</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Top 10 Courses — Details</h3>
+                        <table>
+                            <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Entries</th></tr></thead>
+                            <tbody>
+                                ${data.top_courses.map((d, i) => `
+                                    <tr><td>${i + 1}</td><td>${escHtml(d.code)}</td><td>${escHtml(d.name)}</td><td>${d.count.toLocaleString()}</td></tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card">
+                        <h3>All Exam Dates — Entries</h3>
+                        <table>
+                            <thead><tr><th>Date</th><th>Entries</th><th>% of Total</th></tr></thead>
+                            <tbody>
+                                ${data.entries_by_date.map(d => `
+                                    <tr><td>${d.date || '(practical slots)'}</td><td>${d.count.toLocaleString()}</td><td>${(d.count / data.total_entries * 100).toFixed(1)}%</td></tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } catch (err) {
+                ANALYSIS_EL.innerHTML = `<div class="msg error">${escHtml(err.message)}</div>`;
+            }
+        }
+
+        function escHtml(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function loadRequests() {
+            REQUESTS_EL.innerHTML = '<div class="loading">Loading requests</div>';
+            fetchRequests();
+        }
+
+        async function fetchRequests() {
+            try {
+                const resp = await fetchWithAuth('/api/admin/requests');
+                if (!resp) return;
+                const requests = await resp.json();
+
+                const pending = requests.filter(r => r.status === 'pending');
+                const resolved = requests.filter(r => r.status === 'resolved');
+
+                REQUESTS_EL.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card green">
+                            <div class="stat-value">${requests.length}</div>
+                            <div class="stat-label">Total Requests</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <div class="stat-value">${pending.length}</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                        <div class="stat-card blue">
+                            <div class="stat-value">${resolved.length}</div>
+                            <div class="stat-label">Resolved</div>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="card">
+                            <h3>Submit New Request</h3>
+                            <div class="request-form">
+                                <div class="msg" id="reqMsg"></div>
+                                <form id="requestForm" novalidate>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Reg No</label>
+                                            <input type="text" id="reqRegno" placeholder="e.g. 25100534760075">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Student Name</label>
+                                            <input type="text" id="reqName" placeholder="e.g. JOHN, DOE">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Request Type</label>
+                                        <select id="reqType" required>
+                                            <option value="">Select type...</option>
+                                            <option value="wrong_venue">Wrong Venue</option>
+                                            <option value="missing_course">Missing Course</option>
+                                            <option value="wrong_date">Wrong Date</option>
+                                            <option value="wrong_time">Wrong Time</option>
+                                            <option value="ue_number">UE Number Issue</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea id="reqDesc" placeholder="Describe the issue..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn" id="reqSubmitBtn">Submit Request</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Pending Requests (${pending.length})</h3>
+                            <div id="pendingList">${renderRequestList(pending, true)}</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>Resolved Requests (${resolved.length})</h3>
+                        <div id="resolvedList">${renderRequestList(resolved, false)}</div>
+                    </div>
+                `;
+
+                document.getElementById('requestForm').addEventListener('submit', submitRequest);
+            } catch (err) {
+                REQUESTS_EL.innerHTML = `<div class="msg error">${escHtml(err.message)}</div>`;
+            }
+        }
+
+        function renderRequestList(requests, showResolve) {
+            if (requests.length === 0) {
+                return '<div class="empty-state">No requests</div>';
+            }
+            return `
+                <table>
+                    <thead><tr>
+                        <th>ID</th><th>Reg No</th><th>Name</th><th>Type</th>
+                        <th>Description</th><th>Date</th>${showResolve ? '<th>Action</th>' : '<th>Note</th>'}
+                    </tr></thead>
+                    <tbody>
+                        ${requests.map(r => `
+                            <tr>
+                                <td>${r.id}</td>
+                                <td>${r.regno || '-'}</td>
+                                <td>${escHtml(r.student_name) || '-'}</td>
+                                <td><span class="badge ${r.status}">${escHtml(r.request_type)}</span></td>
+                                <td>${escHtml(r.description) || '-'}</td>
+                                <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
+                                ${showResolve ? `
+                                    <td>
+                                        <form class="resolve-form" onsubmit="resolveRequest(event, ${r.id})">
+                                            <input type="text" id="note-${r.id}" placeholder="Admin note" required>
+                                            <button type="submit" class="btn btn-sm btn-outline">Resolve</button>
+                                        </form>
+                                    </td>
+                                ` : `
+                                    <td style="color:#666;font-size:0.75rem;">${escHtml(r.admin_note) || '-'}</td>
+                                `}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        async function submitRequest(e) {
+            e.preventDefault();
+            const btn = document.getElementById('reqSubmitBtn');
+            const msg = document.getElementById('reqMsg');
+            msg.className = 'msg';
+            msg.style.display = 'none';
+
+            const regno = document.getElementById('reqRegno').value.trim();
+            const student_name = document.getElementById('reqName').value.trim();
+            const request_type = document.getElementById('reqType').value;
+            const description = document.getElementById('reqDesc').value.trim();
+
+            if (!request_type) {
+                msg.className = 'msg error'; msg.style.display = 'block';
+                msg.textContent = 'Please select a request type';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            try {
+                const body = new URLSearchParams({ regno, student_name, request_type, description });
+                const resp = await fetchWithAuth('/api/admin/requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+                if (!resp) return;
+                msg.className = 'msg success'; msg.style.display = 'block';
+                msg.textContent = 'Request submitted successfully';
+                document.getElementById('reqRegno').value = '';
+                document.getElementById('reqName').value = '';
+                document.getElementById('reqType').value = '';
+                document.getElementById('reqDesc').value = '';
+                setTimeout(fetchRequests, 500);
+            } catch (err) {
+                msg.className = 'msg error'; msg.style.display = 'block';
+                msg.textContent = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Request';
+            }
+        }
+
+        async function resolveRequest(e, id) {
+            e.preventDefault();
+            const note = document.getElementById('note-' + id).value.trim();
+            if (!note) return;
+
+            try {
+                const body = new URLSearchParams({ admin_note: note });
+                const resp = await fetchWithAuth('/api/admin/requests/' + id + '/resolve', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+                if (!resp) return;
+                fetchRequests();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // Initial load
+        loadOverview();
+
+        // Tab-based loading
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const t = tab.dataset.tab;
+                if (t === 'overview' && OVERVIEW_EL.innerHTML === '') loadOverview();
+                if (t === 'analysis' && ANALYSIS_EL.innerHTML === '') loadAnalysis();
+                if (t === 'requests' && REQUESTS_EL.innerHTML === '') loadRequests();
+            });
+        });
+    </script>
+</body>
+</html>

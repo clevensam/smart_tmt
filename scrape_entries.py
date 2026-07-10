@@ -82,6 +82,7 @@ def scrape():
     name_re = re.compile(r"^\d+\.\s+(.+)")
     reg_re = re.compile(r"Reg:\s*(\d+)")
     prog_re = re.compile(r"Programme:\s*(.+)")
+    ue_re = re.compile(r"UE No:\s*(\S+)")
 
     batch = []
     for page_num in range(total):
