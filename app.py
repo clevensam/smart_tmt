@@ -85,6 +85,35 @@ def init_admin_db():
 init_admin_db()
 
 
+def ensure_entries_schema():
+    conn = sqlite3.connect(ENTRIES_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS timetable_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            regno TEXT NOT NULL,
+            student_name TEXT,
+            student_programme TEXT,
+            course_code TEXT,
+            course_name TEXT,
+            exam_date TEXT,
+            day TEXT,
+            time_slot TEXT,
+            venue TEXT
+        )
+    """)
+    for idx in [
+        "CREATE INDEX IF NOT EXISTS idx_entry_course ON timetable_entries(course_code)",
+        "CREATE INDEX IF NOT EXISTS idx_entry_regno ON timetable_entries(regno)",
+        "CREATE INDEX IF NOT EXISTS idx_entry_date ON timetable_entries(exam_date)",
+    ]:
+        conn.execute(idx)
+    conn.commit()
+    conn.close()
+
+
+ensure_entries_schema()
+
+
 def migrate_students_db():
     conn = sqlite3.connect(STUDENTS_DB_PATH)
     try:
