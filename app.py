@@ -85,6 +85,20 @@ def init_admin_db():
 init_admin_db()
 
 
+def migrate_students_db():
+    conn = sqlite3.connect(STUDENTS_DB_PATH)
+    try:
+        conn.execute("ALTER TABLE students ADD COLUMN ue_number TEXT")
+        conn.commit()
+        print("Added ue_number column to students table")
+    except sqlite3.OperationalError:
+        pass
+    conn.close()
+
+
+migrate_students_db()
+
+
 def get_student(regno: str):
     conn = sqlite3.connect(STUDENTS_DB_PATH)
     conn.row_factory = sqlite3.Row
