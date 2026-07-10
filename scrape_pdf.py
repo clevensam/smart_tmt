@@ -17,7 +17,6 @@ def ensure_schema():
             ue_number TEXT
         )
     """)
-    # Add ue_number column if missing (for existing DBs)
     try:
         conn.execute("ALTER TABLE students ADD COLUMN ue_number TEXT")
     except Exception:
@@ -46,7 +45,19 @@ def ensure_schema():
     conn.close()
 
 
-def load_student_map():
+def load_ue_map():
+    conn = sqlite3.connect(STUDENTS_DB_PATH)
+    rows = conn.execute(
+        "SELECT regno, name, programme, ue_number FROM students WHERE ue_number IS NOT NULL AND ue_number != ''"
+    ).fetchall()
+    conn.close()
+    ue_map = {}
+    for regno, name, programme, ue_number in rows:
+        ue_map[ue_number] = (regno, name, programme)
+    return ue_map
+
+
+def load_name_map():
     conn = sqlite3.connect(STUDENTS_DB_PATH)
     rows = conn.execute("SELECT regno, name, programme FROM students").fetchall()
     conn.close()
@@ -148,17 +159,18 @@ def parse_page_entries(page):
 def scrape():
     ensure_schema()
 
-    print("Loading existing student map...")
-    student_map = load_student_map()
-    print(f"  Found {len(student_map)} students in database")
+    print("Loading UE number → regno map...")
+    ue_map = load_ue_map()
+    print(f"  Found {len(ue_map)} students with UE numbers")
+
+    print("Loading name → regno fallback map...")
+    name_map = load_name_map()
+    print(f"  Found {len(name_map)} students with names")
 
     print(f"Opening PDF: {PDF_PATH}")
     doc = fitz.open(PDF_PATH)
     total = len(doc)
     print(f"Total pages: {total}")
-
-    students_conn = sqlite3.connect(STUDENTS_DB_PATH)
-    students_cursor = students_conn.cursor()
 
     entries_conn = sqlite3.connect(ENTRIES_DB_PATH)
     entries_cursor = entries_conn.cursor()
@@ -166,9 +178,12 @@ def scrape():
     entries_conn.commit()
 
     entries_batch = []
-    ue_updated = 0
-    ue_skipped = 0
+    ue_matched = 0
+    name_matched = 0
     no_name_pages = 0
+    no_ue_pages = 0
+    unmatched_ue = 0
+    fallback_skipped = 0
     matched_entries = 0
 
     for page_num in range(total):
@@ -181,30 +196,41 @@ def scrape():
                 print(f"  Progress: {page_num + 1}/{total} pages processed (no name)")
             continue
 
-        key = name.lower().strip()
-        student = student_map.get(key)
+        regno = student_name = student_prog = None
 
-        if student is None:
-            ue_skipped += 1
-            if ue_skipped <= 5:
-                print(f"  [SKIP] No match for '{name}' (page {page_num + 1})")
+        # Primary: look up by UE number
+        if ue_number and ue_number in ue_map:
+            regno, student_name, student_prog = ue_map[ue_number]
+            ue_matched += 1
+        elif ue_number:
+            # UE number exists in PDF but not in DB
+            unmatched_ue += 1
+            if unmatched_ue <= 5:
+                print(f"  [UNMATCHED UE] '{ue_number}' for '{name}' (page {page_num + 1})")
+        else:
+            no_ue_pages += 1
+
+        # Fallback: look up by name if UE didn't work
+        if regno is None and name:
+            key = name.lower().strip()
+            student = name_map.get(key)
+            if student:
+                regno, student_name, student_prog = student
+                name_matched += 1
+                if name_matched <= 5:
+                    print(f"  [NAME FALLBACK] '{name}' matched by name (page {page_num + 1})")
+            else:
+                fallback_skipped += 1
+
+        if regno is None:
             if (page_num + 1) % 1000 == 0:
-                print(f"  Progress: {page_num + 1}/{total} pages processed")
+                print(f"  Progress: {page_num + 1}/{total} pages processed (skipped)")
             continue
-
-        regno, old_name, old_prog = student
-
-        if ue_number:
-            students_cursor.execute(
-                "UPDATE students SET ue_number = ? WHERE regno = ?",
-                (ue_number, regno)
-            )
-            ue_updated += 1
 
         entries = parse_page_entries(page)
         for entry in entries:
             code, cname, date, day, time, venue = entry
-            entries_batch.append((regno, old_name, old_prog, code, cname, date, day, time, venue))
+            entries_batch.append((regno, student_name, student_prog, code, cname, date, day, time, venue))
             matched_entries += 1
 
         if len(entries_batch) >= 100:
@@ -216,8 +242,7 @@ def scrape():
             entries_batch = []
 
         if (page_num + 1) % 1000 == 0:
-            students_conn.commit()
-            print(f"  Progress: {page_num + 1}/{total} pages processed (UE:{ue_updated} skip:{ue_skipped} entries:{matched_entries})")
+            print(f"  Progress: {page_num + 1}/{total} pages (UE:{ue_matched} name:{name_matched} unmatched_ue:{unmatched_ue} no_ue:{no_ue_pages} skipped:{fallback_skipped} entries:{matched_entries})")
 
     if entries_batch:
         entries_cursor.executemany(
@@ -226,16 +251,16 @@ def scrape():
         )
         entries_conn.commit()
 
-    students_conn.commit()
-
     doc.close()
-    students_conn.close()
     entries_conn.close()
 
     print(f"\nDone. Processed {total} pages.")
-    print(f"  UE numbers updated: {ue_updated}")
+    print(f"  Matched by UE number: {ue_matched}")
+    print(f"  Matched by name (fallback): {name_matched}")
     print(f"  No name on page: {no_name_pages}")
-    print(f"  Unmatched students (skipped): {ue_skipped}")
+    print(f"  No UE on page: {no_ue_pages}")
+    print(f"  UE in PDF but not in DB: {unmatched_ue}")
+    print(f"  Unmatched (skipped): {fallback_skipped}")
     print(f"  Timetable entries inserted: {matched_entries}")
 
 
