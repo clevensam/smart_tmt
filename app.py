@@ -484,7 +484,7 @@ async def donate_initiate(request: Request):
     if not amount or int(amount) < 100:
         raise HTTPException(status_code=422, detail="Minimum donation is 100 TZS")
 
-    order_ref = f"COFFEE-{int(time.time())}-{secrets.token_hex(4)}".upper()
+    order_ref = f"CF{int(time.time()) % 10**8}{secrets.token_hex(3)}".upper()
 
     conn = sqlite3.connect(DONATIONS_DB_PATH)
     conn.execute(
@@ -494,7 +494,14 @@ async def donate_initiate(request: Request):
     conn.commit()
     conn.close()
 
-    result = await clickpesa.initiate_ussd_push(phone, str(amount), order_ref)
+    try:
+        result = await clickpesa.initiate_ussd_push(phone, str(amount), order_ref)
+    except ValueError as e:
+        conn = sqlite3.connect(DONATIONS_DB_PATH)
+        conn.execute("UPDATE donations SET status = 'FAILED' WHERE order_reference = ?", (order_ref,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(status_code=502, detail=str(e))
 
     status_val = result.get("status", "PROCESSING")
     clickpesa_id = result.get("id", "")
@@ -517,7 +524,10 @@ async def donate_initiate(request: Request):
 
 @app.get("/api/donate/status/{order_ref}")
 async def donate_status(order_ref: str):
-    result = await clickpesa.check_payment(order_ref)
+    try:
+        result = await clickpesa.check_payment(order_ref)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
     status_val = result.get("status", "PROCESSING")
     channel = result.get("channel", "")

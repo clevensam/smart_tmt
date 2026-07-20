@@ -642,11 +642,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, phone, amount: parseInt(amount) }),
                 });
-                if (!resp.ok) {
-                    const err = await resp.json();
-                    throw new Error(err.detail || 'Failed to initiate payment');
-                }
                 const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.detail || 'Failed to initiate payment');
+                }
 
                 if (data.status === 'SUCCESS') {
                     donateStatus.className = 'donate-status success';
