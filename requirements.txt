@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 python-multipart
 fpdf2
+httpx
+python-dotenv

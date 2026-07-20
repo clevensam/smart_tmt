@@ -4,3 +4,8 @@ services:
     env: docker
     repo: https://github.com/clevensam/smart_tmt.git
     plan: free
+    envVars:
+      - key: CLICKPESA_CLIENT_ID
+        sync: false
+      - key: CLICKPESA_API_KEY
+        sync: false

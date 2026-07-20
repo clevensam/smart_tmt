@@ -11,9 +11,36 @@
             background: #e8f0e8;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            padding-top: 60px;
+        }
+        .coffee-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, #18512f 0%, #2a8f52 100%);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .coffee-banner:hover {
+            background: linear-gradient(135deg, #134428 0%, #1e7a40 100%);
+        }
+        .coffee-banner .coffee-icon {
+            font-size: 1.2rem;
         }
         .card {
             background: white;
@@ -215,8 +242,122 @@
             font-weight: 600;
             color: #18512f;
         }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px; right: 16px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #999;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+        .modal-close:hover { color: #333; }
+        .modal h2 {
+            color: #18512f;
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+        .modal .modal-sub {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+        .modal .form-group {
+            margin-bottom: 14px;
+        }
+        .modal .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .modal .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .modal .form-group input:focus { border-color: #18512f; }
+        .modal .donate-btn {
+            width: 100%;
+            padding: 12px;
+            background: #18512f;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 6px;
+        }
+        .modal .donate-btn:hover { background: #134428; }
+        .modal .donate-btn:disabled { background: #999; cursor: not-allowed; }
+        .modal .donate-status {
+            text-align: center;
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .modal .donate-status.pending {
+            display: block;
+            background: #fff3e0;
+            border: 1px solid #ffe0b2;
+            color: #e65100;
+        }
+        .modal .donate-status.success {
+            display: block;
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #1b5e20;
+        }
+        .modal .donate-status.error {
+            display: block;
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+        }
+        .modal .spinner {
+            display: inline-block;
+            width: 18px; height: 18px;
+            border: 3px solid #e65100;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 480px) {
-            body { padding: 10px; }
+            body { padding: 10px; padding-top: 56px; }
             .card { padding: 20px; }
             h1 { font-size: 1.25rem; }
             .logo { font-size: 1.5rem; }
@@ -224,10 +365,38 @@
             .input-group { flex-direction: column; }
             .input-group button { width: 100%; }
             .venue-header { flex-direction: column; text-align: center; gap: 6px; }
+            .modal { padding: 24px; margin: 10px; }
         }
     </style>
 </head>
 <body>
+    <div class="coffee-banner" onclick="openCoffeeModal()">
+        <span class="coffee-icon">☕</span>
+        <span>Buy Mopao a Coffee</span>
+    </div>
+
+    <div class="modal-overlay" id="coffeeModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeCoffeeModal()">&times;</button>
+            <h2>☕ Buy Mopao a Coffee</h2>
+            <p class="modal-sub">Support the developer with a small donation via mobile money</p>
+            <div class="form-group">
+                <label for="donorName">Your Name (optional)</label>
+                <input type="text" id="donorName" placeholder="e.g. John Doe">
+            </div>
+            <div class="form-group">
+                <label for="donorPhone">Phone Number</label>
+                <input type="tel" id="donorPhone" placeholder="255712345678" pattern="255[0-9]{9}" maxlength="12" required>
+            </div>
+            <div class="form-group">
+                <label for="donorAmount">Amount (TZS)</label>
+                <input type="number" id="donorAmount" placeholder="e.g. 2000" min="100" required>
+            </div>
+            <button class="donate-btn" id="donateBtn" onclick="initiateDonation()">Send Payment</button>
+            <div class="donate-status" id="donateStatus"></div>
+        </div>
+    </div>
+
     <div class="card">
         <div class="logo">M<span>U</span>ST</div>
         <h1>UE Timetable Downloader</h1>
@@ -419,6 +588,120 @@
                 venueBtn.textContent = 'Find';
             }
         });
+        // ─── Coffee Donation Modal ──────────────────────────────────────
+        const coffeeModal = document.getElementById('coffeeModal');
+        const donateStatus = document.getElementById('donateStatus');
+        const donateBtn = document.getElementById('donateBtn');
+        let pollTimer = null;
+
+        function openCoffeeModal() {
+            coffeeModal.classList.add('active');
+        }
+        function closeCoffeeModal() {
+            coffeeModal.classList.remove('active');
+            donateStatus.className = 'donate-status';
+            donateStatus.style.display = 'none';
+            donateBtn.disabled = false;
+            donateBtn.textContent = 'Send Payment';
+            document.getElementById('donorName').value = '';
+            document.getElementById('donorPhone').value = '';
+            document.getElementById('donorAmount').value = '';
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+        coffeeModal.addEventListener('click', (e) => {
+            if (e.target === coffeeModal) closeCoffeeModal();
+        });
+
+        async function initiateDonation() {
+            const name = document.getElementById('donorName').value.trim();
+            const phone = document.getElementById('donorPhone').value.trim();
+            const amount = document.getElementById('donorAmount').value.trim();
+
+            if (!phone || !/^255\d{9}$/.test(phone)) {
+                donateStatus.className = 'donate-status error';
+                donateStatus.textContent = 'Phone must be in format 255XXXXXXXXX';
+                donateStatus.style.display = 'block';
+                return;
+            }
+            if (!amount || parseInt(amount) < 100) {
+                donateStatus.className = 'donate-status error';
+                donateStatus.textContent = 'Minimum donation is 100 TZS';
+                donateStatus.style.display = 'block';
+                return;
+            }
+
+            donateBtn.disabled = true;
+            donateBtn.textContent = 'Sending...';
+            donateStatus.className = 'donate-status pending';
+            donateStatus.innerHTML = '<span class="spinner"></span> Initiating payment...';
+            donateStatus.style.display = 'block';
+
+            try {
+                const resp = await fetch('/api/donate/initiate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, phone, amount: parseInt(amount) }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Failed to initiate payment');
+                }
+                const data = await resp.json();
+
+                if (data.status === 'SUCCESS') {
+                    donateStatus.className = 'donate-status success';
+                    donateStatus.textContent = 'Payment successful! Thank you for the coffee ☕';
+                    setTimeout(closeCoffeeModal, 4000);
+                    return;
+                }
+
+                donateStatus.className = 'donate-status pending';
+                donateStatus.innerHTML = '<span class="spinner"></span> Check your phone to enter your PIN...';
+                startPolling(data.orderReference);
+            } catch (err) {
+                donateStatus.className = 'donate-status error';
+                donateStatus.textContent = err.message;
+                donateBtn.disabled = false;
+                donateBtn.textContent = 'Send Payment';
+            }
+        }
+
+        function startPolling(orderRef) {
+            if (pollTimer) clearInterval(pollTimer);
+            let attempts = 0;
+            pollTimer = setInterval(async () => {
+                attempts++;
+                if (attempts > 30) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                    donateStatus.className = 'donate-status error';
+                    donateStatus.textContent = 'Payment timed out. Please try again.';
+                    donateBtn.disabled = false;
+                    donateBtn.textContent = 'Send Payment';
+                    return;
+                }
+                try {
+                    const resp = await fetch('/api/donate/status/' + orderRef);
+                    const data = await resp.json();
+                    if (data.status === 'SUCCESS' || data.status === 'SETTLED') {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                        donateStatus.className = 'donate-status success';
+                        donateStatus.textContent = 'Payment successful! Thank you for the coffee ☕';
+                        setTimeout(closeCoffeeModal, 4000);
+                    } else if (data.status === 'FAILED') {
+                        clearInterval(pollTimer);
+                        pollTimer = null;
+                        donateStatus.className = 'donate-status error';
+                        donateStatus.textContent = 'Payment failed. Please try again.';
+                        donateBtn.disabled = false;
+                        donateBtn.textContent = 'Send Payment';
+                    }
+                } catch (e) {
+                    // keep polling on network errors
+                }
+            }, 3000);
+        }
     </script>
 </body>
 </html>

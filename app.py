@@ -11,7 +11,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fpdf import FPDF
 from starlette import status
 
-from config import STUDENTS_DB_PATH, ENTRIES_DB_PATH, TEMPLATE_DIR
+from config import STUDENTS_DB_PATH, ENTRIES_DB_PATH, DONATIONS_DB_PATH, TEMPLATE_DIR
+import clickpesa
 
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
@@ -112,6 +113,29 @@ def ensure_entries_schema():
 
 
 ensure_entries_schema()
+
+
+def init_donations_db():
+    conn = sqlite3.connect(DONATIONS_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS donations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            donor_name TEXT,
+            phone_number TEXT,
+            amount INTEGER,
+            order_reference TEXT UNIQUE,
+            clickpesa_id TEXT,
+            status TEXT DEFAULT 'pending',
+            channel TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+init_donations_db()
 
 
 def migrate_students_db():
@@ -445,7 +469,76 @@ async def venue_share_view(course: str = Query(...), venue: str = Query(default=
     return await _venue_pdf(course, venue, inline=True)
 
 
-# ─── Admin Auth ─────────────────────────────────────────────────────────────────
+# ─── Donations ────────────────────────────────────────────────────────────────
+
+
+@app.post("/api/donate/initiate")
+async def donate_initiate(request: Request):
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    phone = (body.get("phone") or "").strip()
+    amount = body.get("amount")
+
+    if not phone or not re.match(r"^255\d{9}$", phone):
+        raise HTTPException(status_code=422, detail="Phone must be in format 255XXXXXXXXX")
+    if not amount or int(amount) < 100:
+        raise HTTPException(status_code=422, detail="Minimum donation is 100 TZS")
+
+    order_ref = f"COFFEE-{int(time.time())}-{secrets.token_hex(4)}".upper()
+
+    conn = sqlite3.connect(DONATIONS_DB_PATH)
+    conn.execute(
+        "INSERT INTO donations (donor_name, phone_number, amount, order_reference) VALUES (?, ?, ?, ?)",
+        (name, phone, int(amount), order_ref),
+    )
+    conn.commit()
+    conn.close()
+
+    result = await clickpesa.initiate_ussd_push(phone, str(amount), order_ref)
+
+    status_val = result.get("status", "PROCESSING")
+    clickpesa_id = result.get("id", "")
+    channel = result.get("channel", "")
+
+    conn = sqlite3.connect(DONATIONS_DB_PATH)
+    conn.execute(
+        "UPDATE donations SET status = ?, clickpesa_id = ?, channel = ? WHERE order_reference = ?",
+        (status_val, clickpesa_id, channel, order_ref),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "orderReference": order_ref,
+        "status": status_val,
+        "channel": channel,
+    }
+
+
+@app.get("/api/donate/status/{order_ref}")
+async def donate_status(order_ref: str):
+    result = await clickpesa.check_payment(order_ref)
+
+    status_val = result.get("status", "PROCESSING")
+    channel = result.get("channel", "")
+    clickpesa_id = result.get("id", "")
+
+    conn = sqlite3.connect(DONATIONS_DB_PATH)
+    conn.execute(
+        "UPDATE donations SET status = ?, channel = ?, clickpesa_id = ?, updated_at = ? WHERE order_reference = ?",
+        (status_val, channel, clickpesa_id, datetime.now().isoformat(), order_ref),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "orderReference": order_ref,
+        "status": status_val,
+        "channel": channel,
+    }
+
+
+# ─── Admin Auth ───────────────────────────────────────────────────────────────
 
 
 def _get_session(request: Request) -> str | None:

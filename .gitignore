@@ -3,3 +3,4 @@ page_cache/
 __pycache__/
 *.pyc
 .env
+donations.db
